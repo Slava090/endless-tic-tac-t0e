@@ -1,0 +1,295 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <title>Неоновые Крестики-Нолики</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #0ABAB5;
+      background-size: cover;
+      color: #fff;
+      text-align: center;
+    }
+
+    h1, h2 {
+      text-shadow: 2px 2px 6px #000;
+    }
+
+    .btn {
+      font-size: 5vw; max-font-size: 1.3em;
+      padding: 12px 25px;
+      margin: 10px;
+      border: none;
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.5);
+      color: #00ffcc;
+      cursor: pointer;
+      transition: 0.3s;
+      box-shadow: 0 0 10px #00ffcc, 0 0 20px #00ffcc inset;
+    }
+
+    .btn:hover {
+      background: rgba(0, 0, 0, 0.7);
+      transform: scale(1.05);
+    }
+
+    #board {
+      margin: 20px auto;
+      border-collapse: collapse;
+    }
+
+    td {
+      width: 30vw; max-width: 100px;
+      height: 30vw; max-height: 100px;
+      border: 3px solid #00ffcc;
+      font-size: 6vw; max-font-size: 2.5em;
+      text-align: center;
+      vertical-align: middle;
+      cursor: pointer;
+      background-color: rgba(0, 0, 0, 0.6);
+      color: white;
+      transition: 0.3s;
+    }
+
+    td:hover {
+      background-color: rgba(0, 255, 204, 0.1);
+    }
+
+    .x-mark::before {
+      content: '✖';
+      color: #ff66ff;
+      font-size: 2em;
+      text-shadow: 0 0 10px #ff66ff;
+    }
+
+    .o-mark::before {
+      content: '◯';
+      color: #00ffff;
+      font-size: 2em;
+      text-shadow: 0 0 10px #00ffff;
+    }
+
+    #status {
+      font-size: 1.4em;
+      margin-top: 15px;
+      text-shadow: 1px 1px 5px black;
+      color: yellow;
+    }
+
+    #mainMenu, #difficultyMenu, #game {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="mainMenu">
+    <h1>🔮 Крестики-нолики: 3 Фишки</h1>
+    <h2>Выбери режим:</h2>
+    <button class="btn" onclick="showDifficultyMenu()">Одиночная игра</button>
+    <button class="btn" onclick="startGame(false)">Игра на двоих</button>
+  </div>
+
+  <div id="difficultyMenu">
+    <h2>Сложность бота:</h2>
+    <button class="btn" onclick="startGame(true, 'easy')">Лёгкий</button>
+    <button class="btn" onclick="startGame(true, 'medium')">Средний</button>
+    <button class="btn" onclick="startGame(true, 'hard')">Нереальный</button>
+    <button class="btn" onclick="backToMainMenu()">← Назад</button>
+  </div>
+
+  <div id="game">
+    <h2 id="modeTitle"></h2>
+    <div id="status"></div>
+    <table id="board"></table>
+    <button class="btn" onclick="backToMainMenu()">↩️ Меню</button>
+  </div>
+
+  <script>
+    const SIZE = 3;
+    let board, currentPlayer, moves, singlePlayer = false, difficulty = 'easy';
+    let gameOver = false, round = 0;
+
+    function showDifficultyMenu() {
+      document.getElementById("mainMenu").style.display = "none";
+      document.getElementById("difficultyMenu").style.display = "block";
+    }
+
+    function backToMainMenu() {
+      document.getElementById("mainMenu").style.display = "block";
+      document.getElementById("game").style.display = "none";
+      document.getElementById("difficultyMenu").style.display = "none";
+    }
+
+    function startGame(isSingle, diff = 'easy') {
+      singlePlayer = isSingle;
+      difficulty = diff;
+      document.getElementById("mainMenu").style.display = "none";
+      document.getElementById("difficultyMenu").style.display = "none";
+      document.getElementById("game").style.display = "block";
+      document.getElementById("modeTitle").textContent = singlePlayer ?
+        `Режим: ${diff}` : "Режим: На двоих";
+      initGame();
+    }
+
+    function initGame() {
+      board = Array.from({ length: SIZE }, () => Array(SIZE).fill(''));
+      currentPlayer = round % 2 === 0 ? 'X' : 'O';
+      moves = { X: [], O: [] };
+      gameOver = false;
+      document.getElementById("status").textContent = "";
+      renderBoard();
+      if (singlePlayer && currentPlayer === 'O') setTimeout(botMove, 400);
+    }
+
+    function renderBoard() {
+      const table = document.getElementById("board");
+      table.innerHTML = '';
+      for (let i = 0; i < SIZE; i++) {
+        const row = document.createElement("tr");
+        for (let j = 0; j < SIZE; j++) {
+          const cell = document.createElement("td");
+          const mark = board[i][j];
+          if (mark === 'X') cell.classList.add('x-mark');
+          if (mark === 'O') cell.classList.add('o-mark');
+          cell.onclick = () => makeMove(i, j);
+          row.appendChild(cell);
+        }
+        table.appendChild(row);
+      }
+    }
+
+    function makeMove(x, y) {
+      if (board[x][y] || gameOver) return;
+      if (moves[currentPlayer].length === 3) {
+        const [ox, oy] = moves[currentPlayer].shift();
+        board[ox][oy] = '';
+      }
+      board[x][y] = currentPlayer;
+      moves[currentPlayer].push([x, y]);
+      renderBoard();
+      if (checkWin(currentPlayer)) {
+        document.getElementById("status").textContent = currentPlayer + " победил!";
+        gameOver = true;
+        round++;
+        setTimeout(initGame, 2000);
+        return;
+      }
+      if (singlePlayer && currentPlayer === 'X') {
+        currentPlayer = 'O';
+        setTimeout(botMove, 400);
+      } else {
+        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+      }
+    }
+
+    function botMove() {
+      if (difficulty === 'easy') return botEasy();
+      if (difficulty === 'medium') return botMedium();
+      botHard();
+    }
+
+    function botEasy() {
+      let empty = [];
+      for (let i = 0; i < SIZE; i++)
+        for (let j = 0; j < SIZE; j++)
+          if (!board[i][j]) empty.push([i, j]);
+      if (empty.length === 0) return;
+      const [x, y] = empty[Math.floor(Math.random() * empty.length)];
+      doBotMove(x, y);
+    }
+
+    function botMedium() {
+      let empty = [];
+      for (let i = 0; i < SIZE; i++)
+        for (let j = 0; j < SIZE; j++)
+          if (!board[i][j]) empty.push([i, j]);
+
+      for (let [x, y] of empty) {
+        board[x][y] = 'O';
+        if (checkWin('O')) return doBotMove(x, y);
+        board[x][y] = '';
+      }
+      for (let [x, y] of empty) {
+        board[x][y] = 'X';
+        if (checkWin('X')) {
+          board[x][y] = '';
+          return doBotMove(x, y);
+        }
+        board[x][y] = '';
+      }
+      botEasy();
+    }
+
+    function botHard() {
+      let bestScore = -Infinity, move;
+      for (let i = 0; i < SIZE; i++) {
+        for (let j = 0; j < SIZE; j++) {
+          if (!board[i][j]) {
+            board[i][j] = 'O';
+            let score = minimax(board, 0, false);
+            board[i][j] = '';
+            if (score > bestScore) {
+              bestScore = score;
+              move = [i, j];
+            }
+          }
+        }
+      }
+      if (move) doBotMove(...move);
+    }
+
+    function doBotMove(x, y) {
+      if (moves['O'].length === 3) {
+        const [ox, oy] = moves['O'].shift();
+        board[ox][oy] = '';
+      }
+      board[x][y] = 'O';
+      moves['O'].push([x, y]);
+      renderBoard();
+      if (checkWin('O')) {
+        document.getElementById("status").textContent = "O победил!";
+        gameOver = true;
+        round++;
+        setTimeout(initGame, 2000);
+        return;
+      }
+      currentPlayer = 'X';
+    }
+
+    function minimax(boardState, depth, isMax) {
+      if (checkWin('O')) return 10 - depth;
+      if (checkWin('X')) return depth - 10;
+      let empty = [];
+      for (let i = 0; i < SIZE; i++)
+        for (let j = 0; j < SIZE; j++)
+          if (!boardState[i][j]) empty.push([i, j]);
+      if (empty.length === 0) return 0;
+      let best = isMax ? -Infinity : Infinity;
+      for (let [x, y] of empty) {
+        boardState[x][y] = isMax ? 'O' : 'X';
+        let score = minimax(boardState, depth + 1, !isMax);
+        boardState[x][y] = '';
+        best = isMax ? Math.max(score, best) : Math.min(score, best);
+      }
+      return best;
+    }
+
+    function checkWin(p) {
+      const lines = [
+        [[0,0],[0,1],[0,2]], [[1,0],[1,1],[1,2]], [[2,0],[2,1],[2,2]],
+        [[0,0],[1,0],[2,0]], [[0,1],[1,1],[2,1]], [[0,2],[1,2],[2,2]],
+        [[0,0],[1,1],[2,2]], [[0,2],[1,1],[2,0]]
+      ];
+      return lines.some(line => line.every(([x, y]) => board[x][y] === p));
+    }
+
+    window.onload = () => {
+      document.getElementById("mainMenu").style.display = "block";
+    };
+  </script>
+</body>
+</html>
